@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>משחק נהיגה</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:Arial,sans-serif; direction:rtl; overflow:hidden; height:100vh; }
+button { cursor:pointer; border:none; font-family:Arial,sans-serif; }
+
+#home, #settings, #game { position:absolute; inset:0; display:none; }
+.active { display:flex !important; }
+
+/* HOME */
+#home { background:linear-gradient(160deg,#87ceeb,#e0f2fe); align-items:center; justify-content:center; }
+.home-card { background:white; border-radius:28px; padding:40px; text-align:center; max-width:360px; width:90%; box-shadow:0 16px 50px rgba(0,0,0,0.13); }
+.home-card h1 { font-size:32px; font-weight:900; margin-bottom:8px; }
+.home-card p  { color:#666; margin-bottom:32px; }
+.btn-green { width:100%; padding:18px; font-size:20px; font-weight:800; background:#22c55e; color:white; border-radius:16px; margin-bottom:12px; box-shadow:0 4px 0 #15803d; }
+.btn-gray  { width:100%; padding:14px; font-size:16px; font-weight:600; background:#f1f5f9; color:#475569; border-radius:14px; }
+
+/* SETTINGS */
+#settings { align-items:flex-start; justify-content:center; overflow-y:auto; padding:20px 0; }
+.settings-card { background:white; border-radius:24px; padding:28px; width:90%; max-width:500px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.15); }
+.lbl { font-size:14px; font-weight:600; margin-bottom:6px; color:#374151; }
+.vehicle-grid { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.v-btn { padding:8px 10px; border-radius:12px; border:2px solid #e5e7eb; background:white; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; color:#111; }
+.v-btn.sel { border:3px solid #e11d48; background:#f0f4ff; }
+.color-row { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.c-dot { width:34px; height:34px; border-radius:50%; border:2px solid transparent; }
+.c-dot.sel { border:3px solid #111; }
+.bg-row { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.bg-btn { padding:6px 12px; border-radius:10px; border:2px solid transparent; font-size:13px; font-weight:600; }
+.bg-btn.sel { border:3px solid #111; }
+.opt-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:22px; }
+.opt-group { display:flex; gap:6px; }
+.opt-btn { flex:1; padding:7px 4px; border-radius:8px; border:1px solid #e5e7eb; background:white; font-size:12px; color:#111; }
+.opt-btn.sel  { border:2px solid #2563eb; background:#eff6ff; font-weight:700; }
+.opt-btn.selr { border:2px solid #e11d48; background:#fff1f2; font-weight:700; }
+.cvi-toggle { display:flex; align-items:center; justify-content:space-between; background:#f9fafb; border:2px solid #e5e7eb; border-radius:14px; padding:12px 16px; margin-bottom:20px; cursor:pointer; }
+.cvi-colors { margin-bottom:16px; padding:14px; background:#222; border-radius:14px; border:1px solid #444; display:none; }
+.cvi-color-btn { width:44px; height:44px; border-radius:10px; border:3px solid #555; font-weight:800; font-size:11px; color:#000; }
+.cvi-color-btn.sel { border:4px solid white; }
+
+/* GAME */
+#game { flex-direction:column; }
+#grass { position:absolute; bottom:0; width:100%; height:155px; z-index:0; }
+#road  { position:absolute; bottom:0; width:100%; height:130px; z-index:1; }
+#road-line { width:100%; position:absolute; top:45%; border-top:5px dashed rgba(255,255,255,0.5); }
+#vehicle { position:absolute; bottom:55px; right:15%; font-size:120px; z-index:5; transition:opacity 0.3s; line-height:1; }
+#score-box { position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.9); padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; z-index:10; }
+#nav-btns { position:absolute; top:16px; left:16px; display:flex; flex-direction:column; gap:8px; z-index:100; }
+.nav-btn { background:rgba(255,255,255,0.9); border-radius:10px; padding:8px 14px; font-size:13px; font-weight:600; color:#111; }
+#hint { position:absolute; bottom:175px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,0.75); padding:6px 16px; border-radius:10px; font-size:14px; white-space:nowrap; pointer-events:none; z-index:10; }
+.obstacle { position:absolute; bottom:95px; display:flex; flex-direction:column; align-items:center; z-index:4; font-size:80px; line-height:1; }
+.obs-pole { width:5px; height:40px; background:#555; }
+.tree  { position:absolute; bottom:160px; font-size:40px; opacity:0.5; pointer-events:none; z-index:2; }
+.cloud { position:absolute; font-size:60px; opacity:0.5; pointer-events:none; z-index:2; }
+#stop-overlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(255,255,255,0.35); z-index:20; pointer-events:none; }
+#stop-overlay.show { display:flex; }
+#stop-msg { background:white; padding:24px 40px; border-radius:24px; font-size:40px; font-weight:900; color:red; border:6px solid red; }
+#win-overlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(34,197,94,0.9); z-index:30; }
+#win-overlay.show { display:flex; }
+#win-overlay h2 { font-size:56px; font-weight:900; color:white; margin-bottom:24px; }
+.win-btns { display:flex; gap:12px; }
+.win-btn1 { padding:14px 30px; font-size:18px; font-weight:700; background:white; color:#16a34a; border-radius:14px; }
+.win-btn2 { padding:14px 30px; font-size:18px; font-weight:700; background:rgba(255,255,255,0.2); color:white; border-radius:14px; border:2px solid white; }
+</style>
+
+</head>
+<body>
+
+<!-- HOME -->
+
+<div id="home" class="active">
+  <div class="home-card">
+    <div style="font-size:64px;margin-bottom:8px">🚗</div>
+    <h1>משחק נהיגה</h1>
+    <p>תרגול עצירה במתג</p>
+    <button class="btn-green" onclick="showSettings()">🎮 התחל משחק</button>
+    <button class="btn-gray"  onclick="startGame()">▶ שחק עם הגדרות ברירת מחדל</button>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+
+<div id="settings">
+  <div class="settings-card" id="settings-card">
+
+```
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+  <button onclick="showHome()" style="background:none;font-size:20px;padding:4px 10px;border-radius:8px">🏠</button>
+  <span id="settings-title" style="font-size:22px;font-weight:900">הגדרות משחק</span>
+</div>
+
+<!-- CVI toggle -->
+<div class="cvi-toggle" id="cvi-toggle" onclick="toggleCVI()">
+  <div>
+    <div id="cvi-label" style="font-weight:800;font-size:15px">מצב CVI 👁️</div>
+    <div style="font-size:12px;color:#666;margin-top:2px">קונטרסט גבוה לילדים עם לקות ראייה קורטיקלית</div>
+  </div>
+  <div id="cvi-switch" style="width:48px;height:26px;border-radius:13px;background:#d1d5db;position:relative;flex-shrink:0">
+    <div id="cvi-knob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.3);transition:left 0.2s"></div>
+  </div>
+</div>
+
+<!-- CVI colors -->
+<div class="cvi-colors" id="cvi-colors">
+  <div class="lbl" style="color:white;margin-bottom:8px">צבע רכב:</div>
+  <div id="cvi-color-row" style="display:flex;gap:10px"></div>
+</div>
+
+<!-- Vehicle -->
+<div class="lbl" id="vehicle-label">בחר רכב:</div>
+<div class="vehicle-grid" id="vehicle-grid"></div>
+
+<!-- Background -->
+<div class="lbl" id="bg-label">בחר רקע:</div>
+<div class="bg-row" id="bg-row"></div>
+
+<!-- Speed & Freq -->
+<div class="opt-row">
+  <div>
+    <div class="lbl" id="speed-label">מהירות:</div>
+    <div class="opt-group" id="speed-group"></div>
+  </div>
+  <div>
+    <div class="lbl" id="freq-label">תמרורים:</div>
+    <div class="opt-group" id="freq-group"></div>
+  </div>
+</div>
+
+<button id="start-btn" class="btn-green" onclick="startGame()">התחל משחק!</button>
+```
+
+  </div>
+</div>
+
+<!-- GAME -->
+
+<div id="game">
+  <div id="grass"></div>
+  <div id="road"><div id="road-line"></div></div>
+  <div id="vehicle">🚗</div>
+  <div id="score-box">תמרורים: 0</div>
+  <div id="nav-btns">
+    <button class="nav-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation();goSettings()" onclick="goSettings()">⚙️ הגדרות</button>
+    <button class="nav-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation();goHome()" onclick="goHome()">🏠 מסך הבית</button>
+  </div>
+  <div id="hint">לחץ והחזק כדי לנסוע</div>
+  <div id="stop-overlay"><div id="stop-msg">עצור! 🛑</div></div>
+  <div id="win-overlay">
+    <h2>כל הכבוד! 🎉</h2>
+    <div class="win-btns">
+      <button class="win-btn1" onclick="startGame()">שחק שוב</button>
+      <button class="win-btn2" onclick="showHome()">🏠 הבית</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──
+const vehicles = [
+  {type:'car',       emoji:'🚗', name:'מכונית'},
+  {type:'truck',     emoji:'🚚', name:'משאית'},
+  {type:'bike',      emoji:'🏍️', name:'אופנוע'},
+  {type:'bus',       emoji:'🚌', name:'אוטובוס'},
+  {type:'ambulance', emoji:'🚑', name:'אמבולנס'},
+  {type:'tractor',   emoji:'🚜', name:'טרקטור'},
+  {type:'scooter',   emoji:'🛵', name:'קטנוע'},
+];
+const colors = [
+  {name:'אדום',value:'#e11d48'},{name:'כחול',value:'#2563eb'},
+  {name:'ירוק',value:'#16a34a'},{name:'סגול',value:'#7c3aed'},
+  {name:'כתום',value:'#ea580c'},{name:'ורוד',value:'#db2777'},{name:'צהוב',value:'#ca8a04'},
+];
+const cviColors = [
+  {name:'צהוב',value:'#FFE600'},{name:'אדום',value:'#FF1A1A'},
+  {name:'ירוק',value:'#00FF66'},{name:'לבן',value:'#FFFFFF'},
+];
+const bgs = [
+  {name:'יום',  sky:'#87ceeb',road:'#444',   grass:'#4ade80'},
+  {name:'שקיעה',sky:'#fb923c',road:'#57534e',grass:'#92400e'},
+  {name:'לילה', sky:'#1e1b4b',road:'#1e293b',grass:'#334155'},
+  {name:'אביב', sky:'#a5f3fc',road:'#78716c',grass:'#34d399'},
+  {name:'חורף', sky:'#cbd5e1',road:'#64748b',grass:'#e2e8f0'},
+  {name:'מדבר', sky:'#fde68a',road:'#a16207',grass:'#fbbf24'},
+  {name:'יער',  sky:'#bbf7d0',road:'#57534e',grass:'#15803d'},
+];
+const speedOpts = [{label:'איטי',v:2},{label:'בינוני',v:4},{label:'מהיר',v:7}];
+const freqOpts  = [{label:'מעט',v:3000},{label:'בינוני',v:1800},{label:'הרבה',v:1000}];
+
+// ── STATE ──
+let selVehicle  = vehicles[0];
+let selColor    = colors[0].value;
+let selBg       = bgs[0];
+let selSpeed    = 4;
+let selFreq     = 1800;
+let cviMode     = false;
+let selCviColor = cviColors[0].value;
+
+// ── SETTINGS UI ──
+function buildSettings() {
+  const dark = cviMode;
+
+  // card style
+  const card = document.getElementById('settings-card');
+  card.style.background = dark?'#1a1a1a':'white';
+  document.getElementById('settings').style.background = dark?'#111':'#f0f4f8';
+  document.getElementById('settings-title').style.color = dark?'#fff':'#111';
+
+  // CVI toggle style
+  const toggle = document.getElementById('cvi-toggle');
+  toggle.style.background = dark?'#FFE60022':'#f9fafb';
+  toggle.style.borderColor = dark?'#FFE600':'#e5e7eb';
+  document.getElementById('cvi-label').style.color = dark?'#FFE600':'#111';
+  document.getElementById('cvi-switch').style.background = dark?'#FFE600':'#d1d5db';
+  document.getElementById('cvi-knob').style.left = dark?'25px':'3px';
+  document.getElementById('cvi-knob').style.background = dark?'#000':'white';
+
+  // CVI color row
+  document.getElementById('cvi-colors').style.display = dark?'block':'none';
+  const ccr = document.getElementById('cvi-color-row');
+  ccr.innerHTML = '';
+  cviColors.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='cvi-color-btn'+(c.value===selCviColor?' sel':'');
+    b.style.background=c.value;
+    b.textContent=c.name;
+    b.onclick=()=>{selCviColor=c.value;buildSettings();};
+    ccr.appendChild(b);
+  });
+
+  // vehicle label
+  document.getElementById('vehicle-label').style.color = dark?'#fff':'#374151';
+
+  // vehicles
+  const vg = document.getElementById('vehicle-grid');
+  vg.innerHTML='';
+  vehicles.forEach(v=>{
+    const sel=v.type===selVehicle.type;
+    const b=document.createElement('button');
+    b.className='v-btn'+(sel?' sel':'');
+    b.style.borderColor=sel?(dark?selCviColor:'#e11d48'):(dark?'#444':'#e5e7eb');
+    b.style.background=sel?(dark?'#222':'#f0f4ff'):(dark?'#1a1a1a':'white');
+    b.style.color=dark?'#fff':'#111';
+    b.innerHTML=`<span style="font-size:28px">${v.emoji}</span>${v.name}`;
+    b.onclick=()=>{selVehicle=v;buildSettings();};
+    vg.appendChild(b);
+  });
+
+  // color & bg (hidden in CVI)
+  const showNormal = !dark;
+  ['bg-label'].forEach(id=>document.getElementById(id).style.display=showNormal?'block':'none');
+  document.getElementById('bg-row').style.display=showNormal?'flex':'none';
+
+  if (showNormal) {
+    const br=document.getElementById('bg-row');
+    br.innerHTML='';
+    bgs.forEach(bg=>{
+      const b=document.createElement('button');
+      b.className='bg-btn'+(bg.name===selBg.name?' sel':'');
+      b.style.background=bg.sky;
+      b.textContent=bg.name;
+      b.onclick=()=>{selBg=bg;buildSettings();};
+      br.appendChild(b);
+    });
+  }
+
+  // speed & freq labels
+  ['speed-label','freq-label'].forEach(id=>{
+    document.getElementById(id).style.color=dark?'#fff':'#374151';
+  });
+
+  const sg=document.getElementById('speed-group');
+  sg.innerHTML='';
+  speedOpts.forEach(s=>{
+    const b=document.createElement('button');
+    b.className='opt-btn'+(s.v===selSpeed?' sel':'');
+    b.style.background=s.v===selSpeed?(dark?'#333':'#eff6ff'):(dark?'#1a1a1a':'white');
+    b.style.borderColor=s.v===selSpeed?(dark?'#FFE600':'#2563eb'):(dark?'#444':'#e5e7eb');
+    b.style.color=dark?'#fff':'#111';
+    b.textContent=s.label;
+    b.onclick=()=>{selSpeed=s.v;buildSettings();};
+    sg.appendChild(b);
+  });
+
+  const fg=document.getElementById('freq-group');
+  fg.innerHTML='';
+  freqOpts.forEach(f=>{
+    const b=document.createElement('button');
+    b.className='opt-btn'+(f.v===selFreq?' selr':'');
+    b.style.background=f.v===selFreq?(dark?'#333':'#fff1f2'):(dark?'#1a1a1a':'white');
+    b.style.borderColor=f.v===selFreq?(dark?'#FF1A1A':'#e11d48'):(dark?'#444':'#e5e7eb');
+    b.style.color=dark?'#fff':'#111';
+    b.textContent=f.label;
+    b.onclick=()=>{selFreq=f.v;buildSettings();};
+    fg.appendChild(b);
+  });
+
+  // start button
+  const sb=document.getElementById('start-btn');
+  sb.style.background=dark?'#FFE600':'#22c55e';
+  sb.style.color=dark?'#000':'white';
+  sb.style.boxShadow=dark?'0 4px 0 #b3a000':'0 4px 0 #15803d';
+}
+
+function toggleCVI() { cviMode=!cviMode; buildSettings(); }
+
+// ── SCREENS ──
+function showScreen(name) {
+  ['home','settings','game'].forEach(s=>document.getElementById(s).classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+}
+function showHome()     { stopAll(); showScreen('home'); }
+function showSettings() { stopAll(); buildSettings(); showScreen('settings'); }
+function goHome()       { stopAll(); showScreen('home'); }
+function goSettings()   { stopAll(); buildSettings(); showScreen('settings'); }
+
+// ── GAME ──
+const TRACK_LENGTH=500;
+let worldPos=0, isMoving=false, locked=false, gameWon=false, score=0;
+let obstacles=[], moveTimer=null, obsTimer=null;
+let audioCtx=null, engOsc=null;
+
+function getCtx() {
+  if (!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function startEngine() {
+  try {
+    const ctx=getCtx(); if(engOsc)return;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='sine';o.frequency.value=120;g.gain.value=0.04;
+    o.connect(g);g.connect(ctx.destination);o.start();engOsc=o;
+  } catch(e){}
+}
+function stopEngine() {
+  try{if(engOsc){engOsc.stop();engOsc.disconnect();engOsc=null;}}catch(e){}
+}
+function playStop() {
+  try {
+    stopEngine(); const ctx=getCtx();
+    [[440,0],[330,0.2],[220,0.4]].forEach(([freq,when])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='square';o.frequency.value=freq;
+      g.gain.setValueAtTime(0.3,ctx.currentTime+when);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+when+0.18);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(ctx.currentTime+when);o.stop(ctx.currentTime+when+0.2);
+    });
+  } catch(e){}
+}
+function playVictory() {
+  try {
+    stopEngine(); const ctx=getCtx();
+    [523,659,784,1047,1319].forEach((freq,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='triangle';o.frequency.value=freq;
+      const t=ctx.currentTime+i*0.18;
+      g.gain.setValueAtTime(0.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);
+      o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.38);
+    });
+  } catch(e){}
+}
+function stopAll() {
+  clearInterval(moveTimer);clearInterval(obsTimer);stopEngine();isMoving=false;
+}
+
+function startGame() {
+  worldPos=0;score=0;obstacles=[];
+  isMoving=false;locked=false;gameWon=false;
+
+  const dark=cviMode;
+  const activeColor=dark?selCviColor:selColor;
+  const activeBg=dark?{sky:'#000',road:'#111',grass:'#000'}:selBg;
+
+  document.getElementById('game').style.background=activeBg.sky;
+  document.getElementById('road').style.background=activeBg.road;
+  document.getElementById('grass').style.background=activeBg.grass;
+  document.getElementById('road-line').style.borderTopColor=dark?'#FFE600':'rgba(255,255,255,0.5)';
+  document.getElementById('road-line').style.borderTopStyle=dark?'solid':'dashed';
+  document.getElementById('vehicle').textContent=selVehicle.emoji;
+  document.getElementById('vehicle').style.filter=dark?`drop-shadow(0 0 12px ${activeColor})`:'none';
+  document.getElementById('score-box').textContent='תמרורים: 0';
+  document.getElementById('score-box').style.background=dark?'#000':'rgba(255,255,255,0.9)';
+  document.getElementById('score-box').style.color=dark?'#FFE600':'#111';
+  document.getElementById('score-box').style.border=dark?'2px solid #FFE600':'none';
+  document.getElementById('hint').style.background=dark?'rgba(0,0,0,0.8)':'rgba(255,255,255,0.75)';
+  document.getElementById('hint').style.color=dark?'#FFE600':'#111';
+  document.getElementById('stop-overlay').classList.remove('show');
+  document.getElementById('win-overlay').classList.remove('show');
+  document.getElementById('hint').textContent='לחץ והחזק כדי לנסוע';
+
+  // nav buttons style
+  document.querySelectorAll('.nav-btn').forEach(b=>{
+    b.style.background=dark?'#000':'rgba(255,255,255,0.9)';
+    b.style.color=dark?'#FFE600':'#111';
+    b.style.border=dark?'2px solid #FFE600':'none';
+  });
+
+  // remove old elements
+  document.querySelectorAll('.obstacle,.tree,.cloud').forEach(e=>e.remove());
+
+  // add trees & clouds (not in CVI/night)
+  if (!dark && activeBg.name!=='לילה') {
+    [['15%','30px'],['55%','60px']].forEach(([l,t])=>{
+      const d=document.createElement('div');
+      d.className='cloud';d.style.left=l;d.style.top=t;d.textContent='☁️';
+      document.getElementById('game').appendChild(d);
+    });
+    for(let i=0;i<8;i++){
+      const d=document.createElement('div');
+      d.className='tree';d.dataset.i=i;d.textContent='🌲';
+      document.getElementById('game').appendChild(d);
+    }
+  }
+
+  showScreen('game');
+  clearInterval(obsTimer);
+  obsTimer=setInterval(addObstacle,selFreq);
+  updateView();
+}
+
+function addObstacle() {
+  if(gameWon)return;
+  const maxY=obstacles.length>0?Math.max(...obstacles.map(o=>o.y)):worldPos;
+  const newY=Math.max(worldPos+40,maxY+20)+Math.random()*15;
+  const id=Date.now();
+  obstacles.push({id,y:newY});
+  const dark=cviMode;
+  const el=document.createElement('div');
+  el.className='obstacle';el.id='obs-'+id;
+  el.style.filter=dark?'drop-shadow(0 0 10px #FF1A1A)':'none';
+  el.innerHTML='🛑<div class="obs-pole" style="background:'+(dark?'#FF1A1A':'#555')+'"></div>';
+  document.getElementById('game').appendChild(el);
+}
+
+function onStart(e) {
+  e.preventDefault();
+  if(e.target.tagName==='BUTTON')return;
+  if(locked||gameWon)return;
+  isMoving=true;startEngine();
+  document.getElementById('hint').textContent='🚗 נוסע...';
+  clearInterval(moveTimer);
+  moveTimer=setInterval(()=>{
+    worldPos+=selSpeed;
+    if(worldPos>=TRACK_LENGTH){
+      worldPos=TRACK_LENGTH;isMoving=false;gameWon=true;
+      clearInterval(moveTimer);playVictory();
+      document.getElementById('win-overlay').classList.add('show');
+      return;
+    }
+    checkCollisions();
+    updateView();
+  },50);
+}
+
+function onStop(e) {
+  e.preventDefault();
+  if(e.target.tagName==='BUTTON')return;
+  if(!isMoving)return;
+  isMoving=false;stopEngine();clearInterval(moveTimer);
+  document.getElementById('hint').textContent='לחץ והחזק כדי לנסוע';
+  checkSuccess();
+}
+
+function checkCollisions() {
+  for(let o of obstacles){
+    const dist=o.y-worldPos;
+    if(dist<=2&&dist>-2){
+      isMoving=false;stopEngine();clearInterval(moveTimer);
+      playStop();locked=true;
+      document.getElementById('vehicle').style.opacity='0.5';
+      document.getElementById('stop-overlay').classList.add('show');
+      setTimeout(()=>{
+        locked=false;worldPos+=5;
+        document.getElementById('vehicle').style.opacity='1';
+        document.getElementById('stop-overlay').classList.remove('show');
+        removeObstacle(o.id);updateView();
+      },2000);
+      break;
+    }
+  }
+}
+
+function checkSuccess() {
+  obstacles.forEach(o=>{
+    const dist=o.y-worldPos;
+    if(dist>2&&dist<15){
+      score++;
+      document.getElementById('score-box').textContent='תמרורים: '+score;
+      removeObstacle(o.id);
+    }
+  });
+}
+
+function removeObstacle(id) {
+  obstacles=obstacles.filter(o=>o.id!==id);
+  const el=document.getElementById('obs-'+id);
+  if(el)el.remove();
+}
+
+function updateView() {
+  obstacles.forEach(o=>{
+    const xPos=85-(o.y-worldPos)*1.5;
+    const el=document.getElementById('obs-'+o.id);
+    if(el){
+      if(xPos<-10||xPos>110){el.style.display='none';}
+      else{el.style.display='flex';el.style.left=xPos+'%';}
+    }
+  });
+  document.querySelectorAll('.tree').forEach((t,i)=>{
+    const x=(worldPos*0.15-i*250)%1800;
+    t.style.left=x+'px';
+  });
+}
+
+const gameEl=document.getElementById('game');
+gameEl.addEventListener('mousedown',onStart);
+gameEl.addEventListener('mouseup',onStop);
+gameEl.addEventListener('touchstart',onStart,{passive:false});
+gameEl.addEventListener('touchend',onStop,{passive:false});
+
+buildSettings();
+</script>
+
+</body>
+</html>
