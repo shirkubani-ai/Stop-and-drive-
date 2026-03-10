@@ -154,8 +154,8 @@ button { cursor:pointer; border:none; font-family:Arial,sans-serif; }
   <div id="win-overlay">
     <h2>כל הכבוד! 🎉</h2>
     <div class="win-btns">
-      <button class="win-btn1" onclick="startGame()">שחק שוב</button>
-      <button class="win-btn2" onclick="showHome()">🏠 הבית</button>
+<button class="win-btn1" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation();startGame()" onclick="startGame()">שחק שוב</button>
+<button class="win-btn2" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation();showHome()" onclick="showHome()">🏠 הבית</button>
     </div>
   </div>
 </div>
